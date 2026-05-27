@@ -1,6 +1,11 @@
 export default async function handler(req, res) {
 
-  // ONLY POST REQUESTS
+  if (req.method === "GET") {
+    return res.status(200).json({
+      key: process.env.OPENROUTER_API_KEY || "MISSING"
+    });
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({
       error: "Only POST allowed"
@@ -11,23 +16,18 @@ export default async function handler(req, res) {
 
     const { messages } = req.body;
 
-    // SAFETY CHECK
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({
         error: "Invalid messages format"
       });
     }
 
-    // CALL OPENROUTER
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
         method: "POST",
         headers: {
-
-          // ✅ THIS IS THE FIX (AUTH HEADER)
           "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-
           "Content-Type": "application/json"
         },
 
@@ -60,27 +60,18 @@ Rules:
 
     console.log("OPENROUTER RESPONSE:", data);
 
-    // EXTRACT REPLY SAFELY
-    const reply =
-      data.choices?.[0]?.message?.content ||
-      data.error?.message ||
-      "No response from AI";
-
     return res.status(200).json({
-      reply
+      reply:
+        data.choices?.[0]?.message?.content ||
+        data.error?.message ||
+        "No response from AI"
     });
 
   } catch (error) {
-
-    console.log("SERVER ERROR:", error);
+    console.log(error);
 
     return res.status(500).json({
       error: "Server error"
     });
   }
-}
-export default function handler(req, res) {
-  res.status(200).json({
-    key: process.env.OPENROUTER_API_KEY || "MISSING"
-  });
 }
