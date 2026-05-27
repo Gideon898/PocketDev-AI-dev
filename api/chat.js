@@ -1,115 +1,81 @@
-export default async function handler(req, res){
+export default async function handler(req, res) {
 
-  // ONLY POST
-  if(req.method !== "POST"){
-
+  // ONLY POST REQUESTS
+  if (req.method !== "POST") {
     return res.status(405).json({
-      error:"Only POST allowed"
+      error: "Only POST allowed"
     });
-
   }
 
-  try{
+  try {
 
-    const { messages } =
-    req.body;
+    const { messages } = req.body;
 
-    const response =
-    await fetch(
+    // SAFETY CHECK
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({
+        error: "Invalid messages format"
+      });
+    }
+
+    // CALL OPENROUTER
+    const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
+        method: "POST",
+        headers: {
 
-        method:"POST",
+          // ✅ THIS IS THE FIX (AUTH HEADER)
+          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
 
-        headers:{
-
-          "Authorization":
-          `Bearer ${process.env.OPENROUTER_API_KEY}`,
-
-          "Content-Type":
-          "application/json"
-
+          "Content-Type": "application/json"
         },
 
         body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
 
-          model:
-          "google/gemini-2.5-flash",
-
-          messages:[
-
+          messages: [
             {
-
-              role:"system",
-
-              content:`
-
+              role: "system",
+              content: `
 You are PocketDev AI.
 
-You are an advanced AI assistant
-focused on:
-
-- coding
-- debugging
-- app development
-- startups
-- UI/UX
-- SaaS products
-- mobile-first design
-- automation
+You are a highly intelligent coding assistant.
 
 Rules:
-
-1. Give clean modern solutions.
-2. Prefer mobile-friendly code.
-3. Never expose API keys.
-4. Explain clearly.
-5. Help users ship real products.
-6. Think step-by-step.
-7. Format code professionally.
-8. Be smart and concise.
-
-`
-
+- Be clear and structured
+- Help with coding, debugging, SaaS, UI/UX
+- Always give working code when asked
+- Keep answers practical and production-ready
+              `
             },
 
             ...messages
-
           ]
-
         })
-
       }
     );
 
-    const data =
-    await response.json();
+    const data = await response.json();
 
-    console.log(data);
+    console.log("OPENROUTER RESPONSE:", data);
 
-    res.status(200).json({
-
-      reply:
-
-      data.choices?.[0]
-      ?.message?.content ||
-
+    // EXTRACT REPLY SAFELY
+    const reply =
+      data.choices?.[0]?.message?.content ||
       data.error?.message ||
+      "No response from AI";
 
-      "No response"
-
+    return res.status(200).json({
+      reply
     });
 
-  }
+  } catch (error) {
 
-  catch(error){
+    console.log("SERVER ERROR:", error);
 
-    console.log(error);
-
-    res.status(500).json({
-      error:"Server error"
+    return res.status(500).json({
+      error: "Server error"
     });
-
   }
-
 }
